@@ -20,11 +20,27 @@ jobs:
       - name: Validate branch name
         run: |
           BRANCH_NAME=${GITHUB_HEAD_REF}
+          PROTECTED_ORIGIN_BRANCHES="qa develop"
           REGEX_BRANCH_NAME="^(${{ inputs.allowed-branches }})\/[A-Z]{3,10}-[0-9]{1,6}-[a-z0-9-]+$"
-          if [[ ! "$BRANCH_NAME" =~ $REGEX_BRANCH_NAME ]]; then
+          REGEX_PROTECTED_BRANCH_NAME="^(${{ inputs.allowed-branches }})$"
+          if [[ " $PROTECTED_ORIGIN_BRANCHES " =~ " $BRANCH_NAME " ]]; then
+            if [[ ! "$BRANCH_NAME" =~ $REGEX_PROTECTED_BRANCH_NAME ]]; then
+              echo "=================================================" >> validate-branch-errors.txt
+              echo "Error: The source branch '$BRANCH_NAME' is not allewed." >> validate-branch-errors.txt
+            fi
+          elif [[ ! "$BRANCH_NAME" =~ $REGEX_BRANCH_NAME ]]; then
             echo "=================================================" >> validate-branch-errors.txt
             echo "Error: Branch name '$BRANCH_NAME' does not follow the naming convention format '[type]/[jira-key]-[short-description]'." >> validate-branch-errors.txt
             echo "Example format: feature/TSHFTO-123-add-validation" >> validate-branch-errors.txt
+          fi
+
+          if [[ "$TARGET_BRANCH" == "main" ]]; then
+            echo "Validando contra rama main"
+          elif [[ "$TARGET_BRANCH" == "develop" ]]; then
+            echo "Validando contra rama develop"
+          else
+            echo "Rama objetivo no soportada"
+            exit 1
           fi
 
       - name: Fail workflow on validation errors
