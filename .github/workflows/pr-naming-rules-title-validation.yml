@@ -1,0 +1,34 @@
+name: Pull Request Title Naming Rules Validation
+description: Validate pullrequest title naming rules.
+
+on:
+  workflow_call:
+
+jobs:
+  pr-naming-rules-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create validate error log file
+        run: |
+          > validate-branch-errors.txt
+
+      - name: Validate pull request title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          REGEX_PR_TITLE="^([A-Z]{3,10}-[0-9]{1,6}){1}(,[A-Z]{3,10}-[0-9]{1,6})*: .+$"
+          if [[ ! "$PR_TITLE" =~ $REGEX_PR_TITLE ]]; then
+            echo "=================================================" >> validate-branch-errors.txt
+            echo "Error: Pull Request title '$PR_TITLE' does not follow the format '[JIRA-KEY](,[JIRA-KEY])*: description'" >> validate-branch-errors.txt
+            echo "Example: 'TSHFTO-11,TSHFTO-15: Add validations for user input and update version node'" >> validate-branch-errors.txt
+          fi
+
+      - name: Fail workflow on validation errors
+        run: |
+          if [[ -s "validate-branch-errors.txt" ]]; then
+            echo "Validation errors found:"
+            cat "validate-branch-errors.txt"
+            echo "================================================="
+            exit 1
+          else
+            echo "All validations passed."
+          fi
