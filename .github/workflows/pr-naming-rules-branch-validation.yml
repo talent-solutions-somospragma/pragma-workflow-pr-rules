@@ -34,15 +34,6 @@ jobs:
             echo "Example format: feature/TSHFTO-123-add-validation" >> validate-branch-errors.txt
           fi
 
-          if [[ "$TARGET_BRANCH" == "main" ]]; then
-            echo "Validando contra rama main"
-          elif [[ "$TARGET_BRANCH" == "develop" ]]; then
-            echo "Validando contra rama develop"
-          else
-            echo "Rama objetivo no soportada"
-            exit 1
-          fi
-
       - name: Fail workflow on validation errors
         run: |
           if [[ -s "validate-branch-errors.txt" ]]; then
