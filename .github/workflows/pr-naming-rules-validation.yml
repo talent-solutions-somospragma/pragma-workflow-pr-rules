@@ -1,0 +1,73 @@
+name: Pull Request Naming Rules Validation
+description: Validate pullrequest title, branch names and commit messages based on naming rules.
+
+on:
+  workflow_call:
+
+jobs:
+  pr-naming-rules-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create validate error log file
+        run: |
+          > validate-branch-errors.txt
+
+      - name: Validate pull request title
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          REGEX_PR_TITLE="^([A-Z]{3,10}-[0-9]{1,6}){1}(,[A-Z]{3,10}-[0-9]{1,6})*: .+$"
+          if [[ ! "$PR_TITLE" =~ $REGEX_PR_TITLE ]]; then
+            echo "=================================================" >> validate-branch-errors.txt
+            echo "Error: Pull Request title '$PR_TITLE' does not follow the format '[JIRA-KEY](,[JIRA-KEY])*: description'" >> validate-branch-errors.txt
+            echo "Example: 'TSHFTO-11,TSHFTO-15: Add validations for user input and update version node'" >> validate-branch-errors.txt
+          fi
+
+      - name: Validate branch name
+        run: |
+          BRANCH_NAME=${GITHUB_HEAD_REF}
+          REGEX_BRANCH_NAME="^([A-Z]{3,10}-[0-9]{1,6}){1}(,[A-Z]{3,10}-[0-9]{1,6})*: .+$"
+          if [[ ! "$BRANCH_NAME" =~ $REGEX_BRANCH_NAME ]]; then
+            echo "=================================================" >> validate-branch-errors.txt
+            echo "Error: Branch name '$BRANCH_NAME' does not follow the naming convention format '[type]/[jira-key]-[short-description]'." >> validate-branch-errors.txt
+            echo "Example format: feature/TSHFTO-123-add-validation" >> validate-branch-errors.txt
+          fi
+
+      - name: Validate commit messages
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.ref }} --depth=1
+          git fetch origin ${{ github.event.pull_request.head.ref }}
+          git log origin/${{ github.event.pull_request.base.ref }}..origin/${{ github.event.pull_request.head.ref }} --pretty=format:"%s" > branch-commits1.txt
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" "${{ github.event.pull_request.commits_url }}" | jq -r '.[] | "\(.sha[0:7])|\(.commit.message)"' > branch-commits.txt
+          sed -i -e '$a\' branch-commits.txt
+
+          REGEX_COMMIT_MESSAGES="^[A-Z]{3,10}-[0-9]{1,6}: .+$"
+
+          while IFS= read -r LINE || [[ -n "$LINE" ]]; do
+            COMMIT_SHA=$(echo "$LINE" | cut -d'|' -f1)
+            COMMIT_MSG=$(echo "$LINE" | cut -d'|' -f2-)
+            echo "================================================="
+            echo "Validating Commit Message: '$LINE'"
+
+            if [[ ! "$COMMIT_MSG" =~ $REGEX_COMMIT_MESSAGES ]]; then
+              echo "=================================================" >> validate-branch-errors.txt
+              echo "Error: Commit [$COMMIT_SHA] with message '$COMMIT_MSG' does not follow the format '[jira-key]: [description]'." >> validate-branch-errors.txt
+              echo "Example format: 'TSHFTO-123: Your message here'." >> validate-branch-errors.txt
+              echo "Validation Failed."
+            else
+              echo "Successful validation."
+            fi
+          done < "branch-commits.txt"
+
+      - name: Fail workflow on validation errors
+        run: |
+          if [[ -s "validate-branch-errors.txt" ]]; then
+            echo "Validation errors found:"
+            cat "validate-branch-errors.txt"
+            echo "================================================="
+            exit 1
+          else
+            echo "All validations passed."
+          fi
