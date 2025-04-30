@@ -1,0 +1,39 @@
+name: Pull Request Branch Naming Rules Validation
+description: Validate branch naming rules.
+
+on:
+  workflow_call:
+    inputs:
+      allowed-branches: # one or more of: feature|hotfix|release|qa|develop
+        required: true
+        type: string
+        description: One or more of follow values feature|hotfix|release|qa|develop
+
+jobs:
+  pr-naming-rules-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create validate error log file
+        run: |
+          > validate-branch-errors.txt
+
+      - name: Validate branch name
+        run: |
+          BRANCH_NAME=${GITHUB_HEAD_REF}
+          REGEX_BRANCH_NAME="^(${{ inputs.allowed-branches }})\/[A-Z]{3,10}-[0-9]{1,6}-[a-z0-9-]+$"
+          if [[ ! "$BRANCH_NAME" =~ $REGEX_BRANCH_NAME ]]; then
+            echo "=================================================" >> validate-branch-errors.txt
+            echo "Error: Branch name '$BRANCH_NAME' does not follow the naming convention format '[type]/[jira-key]-[short-description]'." >> validate-branch-errors.txt
+            echo "Example format: feature/TSHFTO-123-add-validation" >> validate-branch-errors.txt
+          fi
+
+      - name: Fail workflow on validation errors
+        run: |
+          if [[ -s "validate-branch-errors.txt" ]]; then
+            echo "Validation errors found:"
+            cat "validate-branch-errors.txt"
+            echo "================================================="
+            exit 1
+          else
+            echo "All validations passed."
+          fi
