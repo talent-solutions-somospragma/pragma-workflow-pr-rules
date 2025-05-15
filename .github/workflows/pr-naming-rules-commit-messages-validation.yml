@@ -14,7 +14,7 @@ jobs:
 
       - name: Validate commit messages
         run: |
-          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" "${{ github.event.pull_request.commits_url }}" | jq -r '.[] | "\(.sha[0:7])|\(.commit.message)"' > branch-commits.txt
+          curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Accept: application/vnd.github+json" "${{ github.event.pull_request.commits_url }}" | jq -r '.[] | "\(.sha[0:7])|\(.commit.message | gsub("[\\r\\n]+"; " ")|\(.commit.committer.name)|\(.commit.committer.email)"' > branch-commits.txt
           sed -i -e '$a\' branch-commits.txt
 
           REGEX_COMMIT_MESSAGES="^[A-Z]{3,10}-[0-9]{1,6}: .+$"
@@ -22,10 +22,14 @@ jobs:
           while IFS= read -r LINE || [[ -n "$LINE" ]]; do
             COMMIT_SHA=$(echo "$LINE" | cut -d'|' -f1)
             COMMIT_MSG=$(echo "$LINE" | cut -d'|' -f2-)
+            COMMITTER_NAME=$(echo "$LINE" | cut -d'|' -f3)
+            COMMITTER_EMAIL=$(echo "$LINE" | cut -d'|' -f4)
             echo "================================================="
             echo "Validating Commit Message: '$LINE'"
 
-            if [[ ! "$COMMIT_MSG" =~ $REGEX_COMMIT_MESSAGES ]]; then
+            if [[ "$COMMITTER_NAME" == "GitHub" && "$COMMITTER_EMAIL" == "noreply@github.com" ]]; then
+              echo "Skip Validation: Commit [$COMMIT_SHA] with message '$COMMIT_MSG' has been by GitHub while make a repository."
+            elif [[ ! "$COMMIT_MSG" =~ $REGEX_COMMIT_MESSAGES ]]; then
               echo "=================================================" >> validate-branch-errors.txt
               echo "Error: Commit [$COMMIT_SHA] with message '$COMMIT_MSG' does not follow the format '[jira-key]: [description]'." >> validate-branch-errors.txt
               echo "Example format: 'TSHFTO-123: Your message here'." >> validate-branch-errors.txt
