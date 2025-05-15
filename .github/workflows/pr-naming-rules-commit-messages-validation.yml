@@ -28,7 +28,7 @@ jobs:
             echo "Validating Commit Message: '$LINE'"
 
             if [[ "$COMMITTER_NAME" == "GitHub" && "$COMMITTER_EMAIL" == "noreply@github.com" ]]; then
-              echo "Skip Validation: Commit [$COMMIT_SHA] with message '$COMMIT_MSG' has been by GitHub while make a repository."
+              echo "Skip Validation: Commit [$COMMIT_SHA] with message '$COMMIT_MSG' was created by GitHub during repository creation."
             elif [[ ! "$COMMIT_MSG" =~ $REGEX_COMMIT_MESSAGES ]]; then
               echo "=================================================" >> validate-branch-errors.txt
               echo "Error: Commit [$COMMIT_SHA] with message '$COMMIT_MSG' does not follow the format '[jira-key]: [description]'." >> validate-branch-errors.txt
